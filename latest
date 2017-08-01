@@ -1,0 +1,3 @@
+#! /bin/bash
+latest=`ls -t '/Users/michael/tank/Reaper backups/' | head -1`
+echo $latest

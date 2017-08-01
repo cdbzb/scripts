@@ -1,0 +1,5 @@
+#!/bin/bash
+while read -r line; do #|| [[ -n "$line" ]]; do
+#rpr "$line"
+echo "$line" | /Applications/REAPER\ ƒ/REAPER64.app/Contents/MacOS/REAPER
+done<"$1"

@@ -1,0 +1,5 @@
+#!/bin/bash
+dir=$PWD
+latest=`ls -t "$dir"/pdf | head -1`
+open -a Skim.app "$dir"/pdf/"$latest"
+

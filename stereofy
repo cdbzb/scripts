@@ -1,0 +1,8 @@
+#! /bin/bash
+
+for file1 in ./*1.wav; do 
+  file2=`echo $file1 | sed 's_\(.*\)1.wav_\12.wav_'`;
+  out=`echo $file1 | sed 's_\(.*\)1.wav_\1.STEREO.wav_'`;
+  sox -MS "$file1" "$file2" "$out";
+  mv "$file1" mono; mv "$file2" mono;
+done

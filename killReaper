@@ -1,0 +1,4 @@
+#! /bin/bash
+killall REAPER
+killall UserNotificationCenter
+open -a REAPER64.app

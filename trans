@@ -1,0 +1,12 @@
+#!/bin/bash
+number=`tmux list-session | grep trans | wc -l`
+
+if [ $number -gt 0 ]
+    then
+	    tmux a -t trans
+    else
+	    tmux new -s trans -d
+	    tmux send-keys -t trans 'vim ~/tank/AllThatFall/Act1_Complete.ly' C-m
+	    tmux a -t trans
+    fi
+

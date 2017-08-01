@@ -1,0 +1,4 @@
+#!/bin/bash
+cd '/Users/michael/tank/AllThatFall/pdf'
+open  $PWD/"`ls -t | head -1`"
+

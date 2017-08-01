@@ -1,0 +1,6 @@
+#!/bin/sh
+hdiutil eject "/Volumes/Time Capsule 2"
+hdiutil eject "/Volumes/Audio"
+hdiutil eject "/Volumes/Archive 1"
+hdiutil eject "/Volumes/Archive 2"
+osascript -e 'tell application "System Events" to sleep'

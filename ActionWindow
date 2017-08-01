@@ -1,0 +1,282 @@
+#! /bin/bash
+
+######### Variables
+ActionList="/Users/michael/Library/Application Support/REAPER/data/Main_Actions_Cat"
+SendOscMsg="/Users/michael/scripts/python-osc-client.py"
+LastAction="/Users/michael/ActionWindowData/LastAction"
+InjectedCode="/Users/michael/Library/Application Support/REAPER/Scripts/Codeinjector.lua"
+mapFlag=false
+numberPending=1
+touch /Users/michael/ActionWindowData/macros/building
+InjectedAction=`cat '/Users/michael/Library/Application Support/REAPER/Data/Main_Actions_Cat' | grep Code | cut -f 2`
+echo $InjectedAction
+function doAction {
+	while [ $numberPending -gt "0" ]; do
+	#echo "$1" | awk -v N=$N '{print $2}'  | \
+	#python3.4 $SendOscMsg
+		declare array=($1)
+		case ${array[0]} in
+			Main)
+				echo ${array[1]} 
+				echo ${array[1]} | python3.4 $SendOscMsg
+				;;
+		esac
+		echo "$ACTION" > $LastAction
+		if [ $mapFlag = true ]
+		then
+			echo "mapping! type x to end";
+			echo "$ACTION ">> /Users/michael/ActionWindowData/macros/building
+			cat /Users/michael/ActionWindowData/macros/building
+		fi
+		let numberPending=$numberPending-1
+	done
+	numberPending=1
+}
+		
+function listMacros {
+	for x in {a..g}
+	do
+		macro=$(cat /Users/michael/ActionWindowData/macros/$x | sed 's/Main//')
+		echo "$x" "$macro"
+	done
+}
+
+function runInjectedCode {
+	echo $InjectedAction | python3.4 $SendOscMsg
+}
+
+function doExAction {
+			case $1 in
+				map)
+					echo "maptime!!"
+					echo "" > /Users/michael/ActionWindowData/macros/building
+					mapFlag=true
+					;;	
+				T) 
+					TrackCompound.sh "$@"
+					;;
+				track)
+					cat /dev/null > ~/ActionWindowData/TrackList.txt
+				################## get tracklist ##############
+					echo '
+					local io = require("io");
+					TrackNumber = reaper.CountTracks(0)
+					for i = 0,(TrackNumber-1) do
+						track = reaper.GetTrack(0,i)
+						local _, name = reaper.GetSetMediaTrackInfo_String(track,"P_NAME","",false)
+						io.popen ( "echo " ..i .."  " ..name .." >> ~/ActionWindowData/TrackList.txt")
+					end ' > "$InjectedCode" 
+					runInjectedCode
+					# sleep 0.5  ###################### TODO get an actual OSC response to proceed?
+					# pmenu < ~/ActionWindowData/TrackList.txt
+					#read -p "trackname?" trackName
+					trackName="${ExAction[1]}"
+					sleep 0.2
+					currentTrack=`grep "$trackName"  ~/ActionWindowData/TrackList.txt`
+					echo "$currentTrack"
+					;;
+				bypass)
+					array=($currentTrack)
+					trackNum=${array[0]}
+					echo -e "
+					TrackNumber = reaper.CountTracks(0)
+					for i = 0,(TrackNumber-1) do
+						track = reaper.GetTrack(0,i)
+						local _, name = reaper.GetSetMediaTrackInfo_String(track,\"P_NAME\",\"\",false)
+						if string.find(name,\"$2\") then\n
+							reaper.SetMediaTrackInfo_Value(track,\"I_FXEN\",0)\n
+						end
+					end " > "$InjectedCode"
+					runInjectedCode
+					echo bypass "${ExAction[1]}"
+					;;
+				unbypass)
+					array=($currentTrack)
+					trackNum=${array[0]}
+					echo -e "
+					TrackNumber = reaper.CountTracks(0)
+					for i = 0,(TrackNumber-1) do
+						track = reaper.GetTrack(0,i)
+						local _, name = reaper.GetSetMediaTrackInfo_String(track,\"P_NAME\",\"\",false)
+						if string.find(name,\"$2\") then\n
+							reaper.SetMediaTrackInfo_Value(track,\"I_FXEN\",1)\n
+						end
+					end " > "$InjectedCode"
+					runInjectedCode
+					echo bypass "${ExAction[1]}"
+					;;
+				t) #set track param [value]
+					if [ "$3" == "param" ]; then
+						param=`pmenu < ~/ActionWindowData/GetSet.lua | sed 's/ :.*//'`
+						else param=`grep  "$3" ~/ActionWindowData/GetSet.lua  | sed 's/ :.*//'`
+					fi
+					if [ "$4" == "" ]; then
+						read -p "value?" value
+						else value=$4
+					fi
+					echo -e "
+					TrackNumber = reaper.CountTracks(0)
+					for i = 0,(TrackNumber-1) do
+						track = reaper.GetTrack(0,i)
+						local _, name = reaper.GetSetMediaTrackInfo_String(track,\"P_NAME\",\"\",false)
+						if string.find(name,\"$2\") then\n
+							reaper.SetMediaTrackInfo_Value(track,\"$param\",$value)\n
+						end
+					end 
+					reaper.TrackList_AdjustWindows(0)
+					reaper.UpdateArrange()
+					" > "$InjectedCode"
+					runInjectedCode
+					echo set $param to $value
+
+					;;
+			esac
+			### if mapping...
+		if [ $mapFlag = true ]
+		then
+			echo "mapping! type x to end";
+			echo  "$command ">> /Users/michael/ActionWindowData/macros/building
+			cat /Users/michael/ActionWindowData/macros/building
+		fi
+		}
+
+		###main loop
+while true
+do
+	read -n1 char
+	case $char in
+		[*]) #run injected code
+			runInjectedCode
+			;;
+		l) #list macros
+			listMacros
+			;;
+		[1-9]) # number pending
+			numberPending=$char
+			;;
+		[?]) #ActionWindow
+			ACTION=`pmenu < "$ActionList"` 
+			doAction "$ACTION"
+			continue
+			;;
+		[a-o]) # registers
+			ACTION=`cat /Users/michael/ActionWindowData/macros/"$char"`
+			doAction "$ACTION"
+			echo "$ACTION"
+			continue
+			;;
+		q) #bind last action to register
+			echo ""
+			cat $LastAction
+			echo "bind register?"
+			read -n1 register
+			touch //Users/michael/ActionWindowData/macros/"$register"
+			cat $LastAction > //Users/michael/ActionWindowData/macros/"$register"
+			continue
+			;;
+		.) #repeat last
+			cat "$LastAction" | awk -v N=$N '{print $2}'  | \
+			python3.4 $SendOscMsg
+			continue
+			;;
+		:) ############# Commands
+			read command 
+			doExAction $command
+			;;
+		x) #end mapping
+			printf "\nmap to?"
+			read mapName
+			cp /Users/michael/ActionWindowData/macros/building /Users/michael/ActionWindowData/macros/"$mapName"
+			mapFlag="0"
+			;;
+		,) ## select and run macro
+			MACRO=`ls /Users/michael/ActionWindowData/macros | pmenu `
+			while read p; do
+				echo "$p" 
+				set -- $p
+				echo 1- $1 2- $2
+				if [ "$1" == "Main" ]
+			     	then
+					doAction "$p"  ######### TODO: fix "LastAction"
+				else
+					doExAction $p
+				fi
+			done</Users/michael/ActionWindowData/macros/"$MACRO"
+			;;
+		@) ## redo last macro
+			if [$numberPending -gt "1"]; then
+				$macroNumberPending=$numberPending
+				$numberPending=1  ###### don't redo first action
+				while [ $macroNumberPending -gt "0" ]; do
+						while read p; do
+							echo "$p" 
+							set -- $p
+							echo 1- $1 2- $2
+							if [ "$1" == "Main" ]
+							then
+								doAction "$p"  ######### TODO: fix "LastAction"
+							else
+								doExAction $p
+							fi
+						done</Users/michael/ActionWindowData/macros/"$MACRO"
+					let macroNumberPending=$macroNumberPending-1
+				done
+			fi
+			;;
+		p) #points menu
+			echo "POINTS (lrud)"
+			while read -n1 char; do
+				case $char in
+					[lrud])
+						ACTION=`grep "Move.*points.*$char.*little"  "$ActionList"`
+						doAction "$ACTION"
+						;;
+					t)   #Select points in TS
+						ACTION=`grep "40330"  "$ActionList"`
+						doAction "$ACTION"
+						;;
+					j)
+						ACTION=`grep "next envelope"  "$ActionList"`
+						doAction "$ACTION"
+						;;
+					k)
+						ACTION=`grep "previous envelope"  "$ActionList"`
+						doAction "$ACTION"
+						;;
+					0) #insert point
+						ACTION=`grep "nsert new point at current position"  "$ActionList"`
+						doAction "$ACTION"
+						;;
+					x) #delete point
+						ACTION=`grep "elete all selected points"  "$ActionList"`
+						doAction "$ACTION"
+						;;
+					s) #select near cursor
+						ACTION=`grep "select point near cur"  "$ActionList"`
+						doAction "$ACTION"
+						;;
+					[np]) # next prev
+						ACTION=`grep "Move edit cursor.* $char.*point.*select "   "$ActionList"`
+						doAction "$ACTION"
+						;;
+					[NP]) # next prev and add
+						lower=`echo $char | tr '[:upper:]' '[:lower:]'`
+						ACTION=`grep "Move.* $lower.* point.*add"   "$ActionList"`
+						doAction "$ACTION"
+						;;
+					q)
+						echo "MAIN"; break
+						;;
+					[?])
+						echo "MAIN";
+						ACTION=`pmenu < "$ActionList"` 
+						doAction "$ACTION"
+						break
+						;;
+				esac
+			done
+			;;
+
+	esac
+done
+

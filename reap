@@ -1,0 +1,12 @@
+#!/bin/bash
+PROCESS=REAPER
+number=$(ps aux | grep $PROCESS | wc -l)
+
+if [ $number -gt 1 ]
+    then
+	    	tmux send-keys -t reaper 'rpr ' "$@" C-m
+	else
+		tmux new -s reaper -d
+	    	tmux send-keys -t reaper 'rpr ' "$@" C-m
+fi
+

@@ -1,0 +1,6 @@
+#!/bin/bash
+cd '/Users/michael/tank/AllThatFall/pdf'
+open  $PWD/"`ls -t | head -1`"
+cd '/Users/michael/tank/AllThatFall/'
+vim -S '/Users/michael/mysession.vim'
+

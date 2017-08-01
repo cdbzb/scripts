@@ -1,0 +1,42 @@
+#!/bin/bash
+set -eu -o pipefail
+
+while getopts v option; do
+  case $option in
+    v)
+      pmenu -v
+      exit
+      ;;
+  esac
+done
+
+prev_ifs=$IFS
+IFS=$'\n'
+desktop_dirs=(${XDG_DATA_HOME-~/.local/share}/applications /usr/share/applications)
+desktop_paths=(`find "${desktop_dirs[@]}" -type f -name "*.desktop" ! -name "chrome-*-*.desktop" 2>/dev/null || :`)
+desktop_names=("${desktop_paths[@]##*/}")
+desktop_names=("${desktop_names[@]%.desktop}")
+IFS=$prev_ifs
+
+result=`IFS=$'\n'; echo "${desktop_names[*]}" | sort -u | pmenu -n run "$@"`
+
+for i in ${!desktop_names[@]}; do
+  [[ ${desktop_names[$i]} == $result ]] || continue
+
+  desktop_path=${desktop_paths[$i]}
+  break
+done
+
+if [[ ! ${desktop_path-} ]]; then
+  terminal_cmd=$result
+else
+  desktop_exec=`grep -oP -m 1 "(?<=^Exec=).+" "$desktop_path"`
+  desktop_exec=${desktop_exec// -[[:alnum:]]* %[[:alpha:]]/}
+  desktop_exec=${desktop_exec// %[[:alpha:]]/}
+  grep -q ^Terminal=true "$desktop_path" || exec setsid $desktop_exec
+
+  terminal_cmd=$desktop_exec
+fi
+
+printf "\e]0;${terminal_cmd%% *}\a"
+exec $terminal_cmd

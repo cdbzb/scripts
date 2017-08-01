@@ -1,0 +1,4 @@
+#!/bin/bash
+	    tmux new -s khd -d
+	    tmux send-keys -t khd 'khd' C-m
+

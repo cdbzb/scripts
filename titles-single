@@ -1,0 +1,3 @@
+#! /bin/bash
+ convert -size 640x480 -gravity center -background black -fill white -pointsize 32 -font "/Library/Fonts/Arial.ttf" -strokewidth 1 -stroke white caption:"$1" ~/titles/$2" $1.png"
+

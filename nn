@@ -1,0 +1,5 @@
+#! /bin/bash
+
+fullpath=~/Notes/"$(ls ~/Notes | pick -o)"
+open "$fullpath"
+

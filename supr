@@ -1,0 +1,12 @@
+#!/bin/bash
+number=`tmux list-session | grep super | wc -l`
+
+if [ $number -gt 0 ]
+    then
+	    tmux a -t super
+    else
+	    tmux new -s super -d
+	    tmux send-keys -t super 'vim ~/tank/super' C-m
+	    tmux a -t super
+    fi
+
